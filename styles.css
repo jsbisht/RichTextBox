@@ -1,0 +1,8 @@
+.icon {
+    height: 16px;
+    width: 16px;
+}
+.icon, .text {
+    display: inline-block;
+    vertical-align: middle;
+}

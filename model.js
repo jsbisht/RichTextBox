@@ -3,6 +3,7 @@
  * and notifies observers about changes.
  */
 function MessageModel(msgs) {
+    msgs = msgs || [];
     this._msgs = msgs;
 
     this.msgAdded = new Event(this);
