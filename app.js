@@ -1,9 +1,11 @@
-(function () {
+(function (window) {
     window.onload = function () {
         var model = new MessageModel();
-	    var view = new ListView(model);
-	    var controller = new ListController(model, view);
+	    var view = new MessagesView(model, {
+            'addButton': document.querySelector('.submit')
+        });
+	    var controller = new MessagesController(model, view);
 
 	    view.show();
     }
-});
+})(window);

@@ -1,11 +1,11 @@
 /**
- * The Model. Model stores items and notifies
- * observers about changes.
+ * The Model. Model stores messages 
+ * and notifies observers about changes.
  */
 function MessageModel(msgs) {
     this._msgs = msgs;
 
-    this.itemAdded = new Event(this);
+    this.msgAdded = new Event(this);
 }
 
 MessageModel.prototype = {
