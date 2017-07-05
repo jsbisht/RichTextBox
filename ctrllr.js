@@ -15,7 +15,7 @@ function MessagesController(model, view) {
 
 MessagesController.prototype = {
     addMsgs: function () {
-        var item = document.querySelector('.rich-text-box').value;
+        var item = document.querySelector('.rich-text-box').innerHTML;
         if (item) {
             this._model.addMsgs(item);
         }

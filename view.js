@@ -9,6 +9,7 @@ function MessagesView(model, elements) {
 
     this.addButtonClicked = new Event(this);
     this.messages = new Messages(model);
+    this.messageProcessor = new MessageProcessor();
 
     var _this = this;
 
@@ -23,11 +24,39 @@ function MessagesView(model, elements) {
         _this.clear();
     });
     this._elements.richTextBox.addEventListener('keydown', function (event) {
-       var code = event.keyCode || event.which;
-       if(code === 13) {
+        function placeCaretAtEnd(el) {
+            el.focus();
+            if (typeof window.getSelection != "undefined"
+                    && typeof document.createRange != "undefined") {
+                var range = document.createRange();
+                range.selectNodeContents(el);
+                range.collapse(false);
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } else if (typeof document.body.createTextRange != "undefined") {
+                var textRange = document.body.createTextRange();
+                textRange.moveToElementText(el);
+                textRange.collapse(false);
+                textRange.select();
+            }
+        }
+
+        var code = event.keyCode || event.which;
+        if (code === 13) {
+            event.preventDefault();
             _this.addButtonClicked.notify();
             _this.clear();
-       }
+        }
+        else {
+            var keys = [48, 188];
+            setTimeout(function() {
+                var msg = document.querySelector('.rich-text-box').innerHTML;
+                var newmsg = _this.messageProcessor.replaceSmileys(msg);
+                document.querySelector('.rich-text-box').innerHTML = newmsg;
+                placeCaretAtEnd(document.querySelector('.rich-text-box'));
+            });
+        }
     });
 }
 
@@ -37,10 +66,10 @@ MessagesView.prototype = {
     },
 
     rebuildList: function () {
-       this.messages.rebuildList();
+        this.messages.rebuildList();
     },
 
-    clear: function() {
+    clear: function () {
         this.messages.clearText();
     }
 };
@@ -56,48 +85,43 @@ function Messages(model) {
     this.messageProcessor = new MessageProcessor();
 }
 
-Messages.prototype.onload = function() {
+Messages.prototype.onload = function () {
     this.showMsgs(this._model.getMsgs());
 };
 
-Messages.prototype.showMsgs = function(msgs) {
-    for(var msg of msgs) {
+Messages.prototype.showMsgs = function (msgs) {
+    for (var msg of msgs) {
         this.showMsg(msg);
     }
 };
 
-Messages.prototype.showMsg = function(msg) {
+Messages.prototype.showMsg = function (msg) {
     // <div class="message"></div>
     var message = document.createElement("div");
     message.classList.add("message");
 
     // Construct message by replacing smileys with image tags
-    var msgContent = this.messageProcessor.getMessageHtml(msg);
+    var msgContent = msg;
     var template = document.createElement('div');
     template.innerHTML = msgContent;
-    
-    var elements = template.childNodes;
-    for(var element of elements) {
-        message.appendChild(element);
-    }
-    
+
+    message.appendChild(template);
     this.messagesElement.appendChild(message);
 };
 
-Messages.prototype.rebuildList = function() {
+Messages.prototype.rebuildList = function () {
     this.clearMsgs();
     this.showMsgs(this._model.getMsgs());
 };
 
 Messages.prototype.clearMsgs = function () {
-    while(this.messagesElement.firstChild)
-    {
+    while (this.messagesElement.firstChild) {
         this.messagesElement.removeChild(this.messagesElement.firstChild);
     }
 };
 
 Messages.prototype.clearText = function () {
-    document.querySelector('.rich-text-box').value = "";
+    document.querySelector('.rich-text-box').innerHTML = "";
 };
 
 
@@ -107,31 +131,32 @@ Messages.prototype.clearText = function () {
  * appropriate image.
  */
 function MessageProcessor() {
-    this.chars = [':', ')', '<', '3'];
-    this.smileys = [':)', '<3'];
+    this.chars = [':', ')', '&', '3'];
+    this.smileys = [':)', '&lt;3'];
     this.smileysImgSrc = ['img/smile.png', 'img/heart.png'];
-    this.maxlength = 2;
+    this.maxlength = 5;
 }
 
-MessageProcessor.prototype.getMessageHtml = function(msg) {
+MessageProcessor.prototype.getMessageHtml = function (msg) {
     return this.replaceSmileys(msg);
 };
 
-MessageProcessor.prototype.replaceSmileys = function(msg) {
-    var char, emoji, isMatchStarted = false, isMatchCompleted = false, isMatchFailed = false;
+MessageProcessor.prototype.replaceSmileys = function (msg) {
+    var char, emoji;
+    var hasFoundEmojies = false, isMatchStarted = false, isMatchCompleted = false, isMatchFailed = false;
     var startIndex = 0, endIndex = 0;
     var result = '<span class="text">';
 
-    for(var i=0; i<msg.length; i++) {
+    for (var i = 0; i < msg.length; i++) {
         char = msg[i];
-        if(this.chars.indexOf(char) >= 0) {
-            if(isMatchStarted === false) {
+        if (this.chars.indexOf(char) >= 0 || isMatchStarted) {
+            if (isMatchStarted === false) {
                 startIndex = i;
                 isMatchStarted = true;
                 continue;
             }
             else {
-                if(startIndex - (i+1) <= this.maxlength) {
+                if ((i + 1) - startIndex <= this.maxlength) {
                     // If Match COMPLETED
                     emoji = msg.substring(startIndex, i + 1);
                     isMatchCompleted = this.smileys.indexOf(emoji) >= 0;
@@ -140,29 +165,26 @@ MessageProcessor.prototype.replaceSmileys = function(msg) {
                 else {
                     // Match FAILED
                     isMatchFailed = true;
-                    isMatchCompleted = false;
-                    isMatchStarted = false;
-                    startIndex = 0;
-                    endIndex = 0;
                 }
             }
         }
 
         // Add charecters to result
-        if(isMatchStarted === false) {
+        if (isMatchStarted === false) {
             result += char;
         }
         // Replace smiley with image element
-        if(isMatchCompleted) {
+        if (isMatchCompleted) {
             result += this.getImageElement(emoji);
+            hasFoundEmojies = true;
         }
         // Add last few chars to result
-        if(isMatchFailed) {
+        if (isMatchFailed) {
             result += emoji;
         }
 
         // Reset state
-        if(isMatchFailed || isMatchCompleted) {
+        if (isMatchFailed || isMatchCompleted) {
             isMatchFailed = false;
             isMatchCompleted = false;
             isMatchStarted = false;
@@ -173,11 +195,11 @@ MessageProcessor.prototype.replaceSmileys = function(msg) {
 
     result += '</span>';
 
-    return result;
+    return hasFoundEmojies ? result : msg;
 };
 
-MessageProcessor.prototype.getImageElement = function(emoji) {
-    var index  = this.smileys.indexOf(emoji);
+MessageProcessor.prototype.getImageElement = function (emoji) {
+    var index = this.smileys.indexOf(emoji);
     var result = '</span> <img class="icon" src="';
     result += this.smileysImgSrc[index];
     result += '"/> <span class="text">';
